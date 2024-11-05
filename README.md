@@ -74,11 +74,3 @@ fastapi run app/main.py --port 80
 ```
 
 Alternative non-root: https://www.geeksforgeeks.org/bind-port-number-less-1024-non-root-access/
-
-## Upgrade packages:
-
-```bash
-pip freeze > requirements.txt
-sed -i 's/==/>=/g' requirements.txt
-pip install -r requirements.txt --upgrade
-```
