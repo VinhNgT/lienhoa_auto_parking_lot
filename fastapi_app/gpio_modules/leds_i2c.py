@@ -71,7 +71,7 @@ class LedsI2c:
 
 
 def run_example():
-    leds = LedsI2c(i2c_bus=8, led_count=4)
+    leds = LedsI2c(i2c_bus=1, led_count=4)
 
     bit_pattern = 0b1100
     while True:

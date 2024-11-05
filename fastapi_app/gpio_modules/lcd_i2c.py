@@ -88,7 +88,7 @@ def run_example():
 
 
 def run_example_print():
-    lcd = LcdI2c(i2c_bus=1)
+    lcd = LcdI2c(i2c_bus=8)
     lcd.write_string(("8" * 20 + "\n") * 4)
 
 

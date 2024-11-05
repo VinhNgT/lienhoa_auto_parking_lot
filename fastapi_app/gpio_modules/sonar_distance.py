@@ -35,7 +35,7 @@ class SonarDistance:
 
 
 def run_example():
-    with SonarDistance(trigger_pin=board.D17, echo_pin=board.D27) as sonar:
+    with SonarDistance(trigger_pin=board.D8, echo_pin=board.D7) as sonar:
         while True:
             print("Range: {0}mm".format(sonar.get_distance()))
             sleep(0.25)

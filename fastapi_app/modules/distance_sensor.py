@@ -10,7 +10,7 @@ from fastapi_app.gpio_modules import SonarDistance
 class DistanceSensor:
     def __init__(self):
         # self._sensor = LaserDistanceI2c(i2c_bus=7)
-        self._sensor = SonarDistance(trigger_pin=board.D17, echo_pin=board.D27)
+        self._sensor = SonarDistance(trigger_pin=board.D8, echo_pin=board.D7)
 
     def __enter__(self):
         return self
