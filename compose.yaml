@@ -11,8 +11,11 @@ services:
       - "/sys/class/pwm/pwmchip0:/sys/class/pwm/pwmchip0"
 
     devices:
+      - "/dev/gpiomem:/dev/gpiomem"
+      - "/dev/gpiochip0:/dev/gpiochip0"
+
       - "/dev/i2c-1:/dev/i2c-1"
       - "/dev/i2c-8:/dev/i2c-8"
-      - "/dev/i2c-7:/dev/i2c-7"
 
+    # privileged: true
     restart: unless-stopped
