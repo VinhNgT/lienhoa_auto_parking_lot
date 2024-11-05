@@ -1,7 +1,8 @@
 import atexit
+import os
 from contextlib import asynccontextmanager
 from enum import Enum
-from typing import Annotated
+from typing import Annotated, Final
 
 from fastapi import APIRouter, Form
 from pydantic import BaseModel, Field
@@ -16,19 +17,33 @@ class GateState(str, Enum):
 
 
 class Gate:
+    OPEN_ANGLE: Final = int(os.getenv("GATE_OPEN_ANGLE", 90))
+    CLOSE_ANGLE: Final = int(os.getenv("GATE_CLOSE_ANGLE", 180))
+    GATE_ANGLE_OFFSET: Final = float(os.getenv("GATE_ANGLE_OFFSET", 0.3))
+
     def __init__(self):
-        self._servo = ServoHwPwm(pwm_channel=0)
+        print(
+            f"Gate: OPEN_ANGLE={self.OPEN_ANGLE}, "
+            f"CLOSE_ANGLE={self.CLOSE_ANGLE}, "
+            f"GATE_ANGLE_OFFSET={self.GATE_ANGLE_OFFSET}"
+        )
+
+        self._servo = ServoHwPwm(
+            pwm_channel=0,
+            initial_angle=self.CLOSE_ANGLE,
+            angle_offset=self.GATE_ANGLE_OFFSET,
+        )
 
         self.set_status(GateState.CLOSE)
-        atexit.register(self._servo.cleanup)
+        atexit.register(self._servo._cleanup)
 
     def set_status(self, state: GateState):
         match state:
             case GateState.CLOSE:
-                self._servo.ease_angle(0, ease_seconds=0.5)
+                self._servo.ease_angle(self.CLOSE_ANGLE, ease_seconds=0.5)
 
             case GateState.OPEN:
-                self._servo.ease_angle(90, ease_seconds=0.5)
+                self._servo.ease_angle(self.OPEN_ANGLE, ease_seconds=0.5)
 
         self.current_state = state
 

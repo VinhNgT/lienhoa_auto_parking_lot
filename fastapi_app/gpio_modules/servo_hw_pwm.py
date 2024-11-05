@@ -7,60 +7,101 @@ from rpi_hardware_pwm import HardwarePWM
 SERVO_DEFAULT_SLEEP_DURATION = 0.5
 
 
+class PercentHardwarePWM:
+    def __init__(
+        self, pwm_channel, hz=50, min_duty=2.85, max_duty=12.425, duty_offset=0
+    ):
+        self._pwm: Final = HardwarePWM(pwm_channel=pwm_channel, hz=hz, chip=0)
+        self.min_duty: Final = min_duty + duty_offset
+        self.max_duty: Final = max_duty + duty_offset
+        self.ratio: Final = (max_duty - min_duty) / 100
+
+    def _duty_to_percent(self, duty: float) -> float:
+        if duty < self.min_duty or duty > self.max_duty:
+            print(f"Duty not in range {self.min_duty}-{self.max_duty}")
+            # Warn: Setting the duty too high or too low will confused the servo.
+            # Fix by unplug and plug the servo in again or the power source.
+            duty = max(self.min_duty, min(duty, self.max_duty))
+
+        return (duty - self.min_duty) / self.ratio
+
+    def _percent_to_duty(self, percent: float) -> float:
+        if percent < 0 or percent > 100:
+            print("Percent value not in range 0-100")
+            percent = max(0, min(percent, 100))
+
+        return (percent * self.ratio) + self.min_duty
+
+    def start(self, duty_percent=0):
+        self._pwm.start(self._percent_to_duty(duty_percent))
+
+    def stop(self):
+        self._pwm.stop()
+
+    def set_percent(self, percent: float):
+        self._pwm.change_duty_cycle(self._percent_to_duty(percent))
+
+
 class ServoHwPwm:
-    SERVO_FREQUENCY: Final = 50
     SERVO_MIN_ANGLE: Final = 0
     SERVO_MAX_ANGLE: Final = 180
+    SERVO_FREQUENCY_HZ = 50
 
-    def __init__(self, pwm_channel, min_duty=2.85, max_duty=12.425, offset_duty=0):
-        self.min_duty: Final = min_duty + offset_duty
-        self.max_duty: Final = max_duty + offset_duty
-        self.angle_duty_ratio: Final = (
-            self.max_duty - self.min_duty
-        ) / self.SERVO_MAX_ANGLE
+    # Round numbers to 13 decimal places to prevent situation like
+    # 7.63750000000001 or 6.87149999999999
+    ROUNDING_DIGITS: Final = 13
 
-        # Initialize PWM
-        self._pwm: Final = HardwarePWM(
-            pwm_channel=pwm_channel, hz=self.SERVO_FREQUENCY, chip=0
-        )
-        self._pwm.start(min_duty)
+    # Flag to stop the servo
+    is_stopping_flag: bool = False
+
+    def __init__(
+        self,
+        pwm_channel,
+        initial_angle=0,
+        angle_offset=0,
+    ):
+        # 1% = 1.8 degree
+        self.percent_angle_ratio: Final = self.SERVO_MAX_ANGLE / 100  # 1.8
+        self.initial_angle: Final = round(initial_angle, self.ROUNDING_DIGITS)
 
         # Variables
-        self.current_angle = self.SERVO_MIN_ANGLE
-        self.current_duty = self.min_duty
+        self.current_angle = self.initial_angle
+
+        # Initialize the servo
+        self._pwm: Final = PercentHardwarePWM(
+            pwm_channel=pwm_channel,
+            hz=self.SERVO_FREQUENCY_HZ,
+            duty_offset=round(
+                self._angle_to_percent(angle_offset), self.ROUNDING_DIGITS
+            ),
+        )
+        self._pwm.start(
+            round(self._angle_to_percent(initial_angle), self.ROUNDING_DIGITS)
+        )
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.cleanup()
+        self._cleanup()
 
-    def cleanup(self):
-        self._pwm.change_duty_cycle(self.min_duty)
-        sleep(SERVO_DEFAULT_SLEEP_DURATION)
+    def _cleanup(self):
+        self.is_stopping_flag = True
+        # self.ease_angle(self.initial_angle, 0.5)
+        # sleep(SERVO_DEFAULT_SLEEP_DURATION)
         self._pwm.stop()
 
-    def set_duty(self, duty: float):
-        # Warn: Setting the duty too high or too low will confused the servo.
-        # Fix by unplug and plug the servo in again or the power source.
-        #
-        # Clamp the duty value so this doesn't happen.
-        clampped_duty = max(self.min_duty, min(self.max_duty, duty))
+    def _angle_to_percent(self, angle: float) -> float:
+        return angle / self.percent_angle_ratio
 
-        # Round the duty to 13 decimal places to prevent situation like
-        # 7.63750000000001 or 6.87149999999999
-        rounding_digits: Final = 13
-
-        self.current_angle = round(
-            (clampped_duty - self.min_duty) / self.angle_duty_ratio, rounding_digits
-        )
-        self.current_duty = round(clampped_duty, rounding_digits)
-
-        # print(f"Setting duty: {self.current_duty}, angle: {self.current_angle}")
-        self._pwm.change_duty_cycle(self.current_duty)
+    def _percent_to_angle(self, percent: float) -> float:
+        return percent * self.percent_angle_ratio
 
     def set_angle(self, angle: float):
-        self.set_duty(self.min_duty + self.angle_duty_ratio * angle)
+        self.current_angle = round(angle, self.ROUNDING_DIGITS)
+        self._pwm.set_percent(
+            round(self._angle_to_percent(angle), self.ROUNDING_DIGITS)
+        )
 
     def ease_angle(self, angle: float, ease_seconds: float):
         if ease_seconds <= 0:
@@ -73,7 +114,7 @@ class ServoHwPwm:
 
         # The number of steps to finish the operation.
         # We multiply by 2 to make the movement smoother.
-        steps = math.ceil(self.SERVO_FREQUENCY * ease_seconds * 2)
+        steps = math.ceil(self.SERVO_FREQUENCY_HZ * ease_seconds * 2)
 
         # The time for each step.
         step_delay = ease_seconds / steps
@@ -82,18 +123,17 @@ class ServoHwPwm:
         step_size = (angle - self.current_angle) / steps
 
         # Perform stepping
+        raw_current_angle = self.current_angle
         for i in range(steps):
-            # target_angle = round(self.current_angle + step_size, 4)
+            if self.is_stopping_flag:
+                break
+
+            target_angle = raw_current_angle + (step_size * (i + 1))
             # print(f"Step {i + 1}/{steps}, moving to {target_angle}")
             # self.set_angle(target_angle)
 
-            self.set_angle(self.current_angle + step_size)
-
-            # After the last step, we don't need to sleep because the operation
-            # is finished.
-            # if i == steps - 1:
-            #     break
-
+            self.set_angle(target_angle)
+            # print(f"Set angle {target_angle}")
             sleep(step_delay)
 
 
@@ -104,6 +144,7 @@ def run_example_1():
                 for i in [0, 90, 180, 90]:
                     # for i in [0, 90, 180]:
                     servo.set_angle(i)
+                    print(f"Angle: {i}")
                     sleep(SERVO_DEFAULT_SLEEP_DURATION)
 
     except KeyboardInterrupt:
@@ -115,6 +156,16 @@ def run_example_2():
         while True:
             input_angle = float(input("Enter angle: "))
             servo.ease_angle(input_angle, ease_seconds=1)
+
+
+def run_example_3():
+    with ServoHwPwm(pwm_channel=0, initial_angle=180, angle_offset=0.3) as servo:
+        is_90 = False
+
+        while True:
+            input("Waiting for trigger")
+            is_90 = not is_90
+            servo.ease_angle(90 if is_90 else 180, ease_seconds=0.5)
 
 
 def servo_calibrator():
@@ -132,5 +183,5 @@ def servo_calibrator():
 if __name__ == "__main__":
     # servo_calibrator()
 
-    run_example_1()
-    # run_example_2()
+    # run_example_1()
+    run_example_3()

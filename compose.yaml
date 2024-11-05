@@ -4,6 +4,11 @@ services:
     image: ghcr.io/vinhngt/lienhoa-gate-raspi-api:latest
     container_name: lienhoa-gate-raspi-api
 
+    environment:
+      GATE_OPEN_ANGLE: 90
+      GATE_CLOSE_ANGLE: 180
+      GATE_ANGLE_OFFSET: 0.3
+
     ports:
       - "80:80"
 
