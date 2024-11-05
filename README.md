@@ -18,7 +18,6 @@ dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4
 
 # Software I2C
 dtoverlay=i2c-gpio,i2c_gpio_sda=23,i2c_gpio_scl=24,bus=8
-dtoverlay=i2c-gpio,i2c_gpio_sda=8,i2c_gpio_scl=7,bus=7
 
 # Disable Bluetooth, free up serial connection
 dtoverlay=disable-bt
@@ -74,7 +73,7 @@ sudo su
 fastapi run app/main.py --port 80
 ```
 
-Alternative: https://www.geeksforgeeks.org/bind-port-number-less-1024-non-root-access/
+Alternative non-root: https://www.geeksforgeeks.org/bind-port-number-less-1024-non-root-access/
 
 ## Upgrade packages:
 
