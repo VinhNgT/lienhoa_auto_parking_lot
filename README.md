@@ -66,7 +66,7 @@ dtoverlay=disable-bt
 - Download the `compose.yaml` file.
 - Run `docker compose up` or `docker compose up -d` in the folder where you saved the file.
   - Tip: You can use `--build` to force build locally if you cloned the whole project.
-- Use examples in `insomnia_exports` to familiarize yourself, or go to http://raspberrypi/docs
+- Open folder `bruno` using https://www.usebruno.com/ to familiarize yourself, or go to http://raspberrypi/docs
 
 ## Manual start (not automatically start on boot, more error prone)
 
