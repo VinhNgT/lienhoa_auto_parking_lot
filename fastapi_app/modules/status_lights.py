@@ -9,7 +9,7 @@ from fastapi_app.gpio_modules import LedsI2c
 
 class StatusLightState(str, Enum):
     NONE = "none"
-    CAR_DETTECTED = "car_detected"
+    READY = "ready"
     PROCESSING = "processing"
     ALLOW = "allow"
     DENY = "deny"
@@ -25,7 +25,7 @@ class StatusLights:
             case StatusLightState.NONE:
                 self._leds.set_leds_bits(0b0000)
 
-            case StatusLightState.CAR_DETTECTED:
+            case StatusLightState.READY:
                 self._leds.set_leds_bits(0b0001)
 
             case StatusLightState.PROCESSING:
@@ -43,7 +43,7 @@ class StatusLights:
 class StatusLightsStateResponse(BaseModel):
     state: StatusLightState = Field(
         description="The status light state",
-        examples=["none", "car_detected", "processing", "allow", "deny"],
+        examples=["none", "ready", "processing", "allow", "deny"],
     )
 
 
