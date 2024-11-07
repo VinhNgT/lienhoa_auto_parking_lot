@@ -1,0 +1,15 @@
+meta {
+  name: Get status light state
+  type: http
+  seq: 3
+}
+
+get {
+  url: http://{{hostname}}/status_lights_state/
+  body: none
+  auth: none
+}
+
+headers {
+  User-Agent: insomnia/10.0.0
+}

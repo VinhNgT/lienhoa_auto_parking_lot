@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Raspberry Pi Zero 2 Gate Modules",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}
