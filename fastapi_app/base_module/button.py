@@ -1,28 +1,63 @@
-# ruff: noqa: F401
-
 import asyncio
-
-from gpiozero import Button, Device
+import time
+from enum import Enum
+from typing import AsyncGenerator
 
 from common import pi_gpio_factory
-
-# button = Button(26)
-
-# Use PiGPIO to avoid vscode freeze bug.
-button = Button(26, pin_factory=pi_gpio_factory)
+from gpiozero import Button as GPIOButton
 
 
-def wait_button_press():
-    button.wait_for_press()
-    print("The button was pressed!")
-    button.wait_for_release()
-    print("The button was released!")
+class ButtonEvent(Enum):
+    PRESSED = 1
+    RELEASED = 2
+
+
+class Button:
+    def __init__(self, pin: int):
+        # Use PiGPIO to avoid vscode freeze bug.
+        self.gpio_button = GPIOButton(
+            pin,
+            pin_factory=pi_gpio_factory,
+            # Debounce time set to 1 FPS
+            bounce_time=1 / 60,
+        )
+
+    async def wait_event(self) -> AsyncGenerator[ButtonEvent, None]:
+        event_queue: asyncio.Queue = asyncio.Queue(2)
+        loop = asyncio.get_running_loop()
+
+        async def _put_event(event: ButtonEvent):
+            await event_queue.put(event)
+
+        self.gpio_button.when_pressed = (
+            lambda: asyncio.run_coroutine_threadsafe(
+                _put_event(ButtonEvent.PRESSED), loop
+            )
+        )
+
+        self.gpio_button.when_released = (
+            lambda: asyncio.run_coroutine_threadsafe(
+                _put_event(ButtonEvent.RELEASED), loop
+            )
+        )
+
+        while True:
+            yield await event_queue.get()
 
 
 async def main():
+    button = Button(26)
     print("Waiting for button press...")
-    while True:
-        await asyncio.to_thread(wait_button_press)
+
+    async for event in button.wait_event():
+        current_time = time.time()
+
+        match event:
+            case ButtonEvent.PRESSED:
+                print("Button pressed! at ", current_time)
+            case ButtonEvent.RELEASED:
+                print("Button released! at ", current_time)
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
