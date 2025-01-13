@@ -1,10 +1,9 @@
-import asyncio
-import contextlib
 import os
+import queue
 import sys
 from datetime import datetime
 from enum import Enum
-from typing import AsyncGenerator, Callable
+from typing import Callable, Generator
 
 # Add current script folder to Python path.
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -48,44 +47,32 @@ class Button:
             bounce_time=1 / 60,
         )
 
-    async def wait_event(self) -> AsyncGenerator[ButtonEvent, None]:
-        event_queue: asyncio.Queue = asyncio.Queue(2)
-        loop = asyncio.get_running_loop()
-
-        async def _put_event(event: ButtonEvent):
-            await event_queue.put(event)
+    def wait_event(self) -> Generator[ButtonEvent, None, None]:
+        event_queue: queue.Queue[ButtonEvent] = queue.Queue(2)
 
         with ButtonWhenPressReleaseMng(
             self.gpio_button,
-            when_pressed=lambda: asyncio.run_coroutine_threadsafe(
-                _put_event(ButtonEvent.PRESSED), loop
-            ),
-            when_released=lambda: asyncio.run_coroutine_threadsafe(
-                _put_event(ButtonEvent.RELEASED), loop
-            ),
+            when_pressed=lambda: event_queue.put(ButtonEvent.PRESSED),
+            when_released=lambda: event_queue.put(ButtonEvent.RELEASED),
         ):
             while True:
-                yield await event_queue.get()
+                yield event_queue.get()
                 event_queue.task_done()
 
 
-async def main():
+def main():
     button = Button(26)
     print("Waiting for button press...")
 
-    async with contextlib.aclosing(button.wait_event()) as wait_event:
-        try:
-            async for event in wait_event:
-                current_time = str(datetime.now())
+    for event in button.wait_event():
+        current_time = str(datetime.now())
 
-                match event:
-                    case ButtonEvent.PRESSED:
-                        print("Button pressed! at ", current_time)
-                    case ButtonEvent.RELEASED:
-                        print("Button released! at ", current_time)
-        except asyncio.exceptions.CancelledError:
-            pass
+        match event:
+            case ButtonEvent.PRESSED:
+                print("Button pressed! at ", current_time)
+            case ButtonEvent.RELEASED:
+                print("Button released! at ", current_time)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
