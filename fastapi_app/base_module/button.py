@@ -66,6 +66,7 @@ class Button:
         ):
             while True:
                 yield await event_queue.get()
+                event_queue.task_done()
 
 
 async def main():
