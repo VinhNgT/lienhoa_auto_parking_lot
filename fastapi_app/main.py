@@ -1,10 +1,18 @@
 from contextlib import asynccontextmanager
+from queue import Full
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import PlainTextResponse
 
-from fastapi_app.exceptions import app_exceptions
-from fastapi_app.modules import buzzer, distance_sensor, gate, screen, status_lights
+from fastapi_app.modules import (
+    buzzer,
+    collision_button,
+    distance_sensor,
+    gate,
+    rfid,
+    screen,
+    status_lights,
+)
 
 # Get the app's version number.
 try:
@@ -19,6 +27,7 @@ except FileNotFoundError:
 async def lifespan(app: FastAPI):
     screen.screen.write_string("API ready")
     yield
+    screen.screen.write_string("Server shutdown")
 
 
 app = FastAPI(
@@ -34,11 +43,13 @@ app = FastAPI(
 )
 
 
-app.include_router(status_lights.router)
 app.include_router(gate.router)
+app.include_router(status_lights.router)
 app.include_router(screen.router)
 app.include_router(buzzer.router)
 app.include_router(distance_sensor.router)
+app.include_router(collision_button.router)
+app.include_router(rfid.router)
 
 
 @app.get(
@@ -56,6 +67,13 @@ async def value_exception_handler(request, exc):
     raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
 
 
-@app.exception_handler(app_exceptions.TooManyRequestsException)
+# @app.exception_handler(app_exceptions.TooManyRequestsException)
+# async def buzzer_too_many_requests_exception_handler(request, exc):
+#     raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, str(exc))
+
+
+@app.exception_handler(Full)
 async def buzzer_too_many_requests_exception_handler(request, exc):
-    raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, str(exc))
+    raise HTTPException(
+        status.HTTP_429_TOO_MANY_REQUESTS, "Buzzer request queue is full"
+    )

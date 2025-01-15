@@ -1,4 +1,5 @@
 import re
+import threading
 import time
 from itertools import chain
 from typing import Final
@@ -99,6 +100,7 @@ class LcdI2c:
         )
 
         self._text_wrapper = TextWrapper(self.MAX_LINE_LENGTH)
+        self._write_lock = threading.Lock()
 
     def __enter__(self):
         return self
@@ -113,34 +115,35 @@ class LcdI2c:
         self._lcd.clear()
 
     def write_string(self, text: str, clear=True):
-        lines = text.rstrip().split("\n")
-        lines = list(
-            chain.from_iterable(
-                [
-                    self._text_wrapper.wrap(line) if line != "" else [""]
-                    for line in lines
-                ]
-            )
-        )
-
-        if clear:
-            self.clear()
-
-        print(f"Sending text to LCD: {lines}")
-        print("-" * self.MAX_LINE_LENGTH)
-
-        for i, line in enumerate(lines):
-            print(line)
-
-            if i >= self.MAX_LINE_COUNT:
-                raise ValueError(
-                    f"Number of lines is greater than {self.MAX_LINE_COUNT}: {lines}"
+        with self._write_lock:
+            lines = text.rstrip().split("\n")
+            lines = list(
+                chain.from_iterable(
+                    [
+                        self._text_wrapper.wrap(line) if line != "" else [""]
+                        for line in lines
+                    ]
                 )
+            )
 
-            self._lcd.write_string(line)
-            self._lcd.crlf()
+            if clear:
+                self.clear()
 
-        print("-" * self.MAX_LINE_LENGTH)
+            print(f"Sending text to LCD: {lines}")
+            print("-" * self.MAX_LINE_LENGTH)
+
+            for i, line in enumerate(lines):
+                print(line)
+
+                if i >= self.MAX_LINE_COUNT:
+                    raise ValueError(
+                        f"Number of lines is greater than {self.MAX_LINE_COUNT}: {lines}"
+                    )
+
+                self._lcd.write_string(line)
+                self._lcd.crlf()
+
+            print("-" * self.MAX_LINE_LENGTH)
 
 
 def run_example():

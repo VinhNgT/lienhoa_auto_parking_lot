@@ -1,4 +1,3 @@
-import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, Form
@@ -9,9 +8,6 @@ from fastapi_app.utils import RunOnShutdown
 
 screen = LcdI2c(i2c_bus=8)
 RunOnShutdown.add(screen.close)
-
-# Lock to prevent multiple request from accessing the screen at the same time
-screen_request_lock = asyncio.Lock()
 
 
 class LcdFormData(BaseModel):
@@ -37,6 +33,5 @@ router = APIRouter(
     response_model=LcdResponse,
 )
 async def set_lcd_text(data: Annotated[LcdFormData, Form()]):
-    async with screen_request_lock:
-        screen.write_string(data.text)
+    screen.write_string(data.text)
     return LcdResponse(text=data.text)
