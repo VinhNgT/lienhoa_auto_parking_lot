@@ -49,6 +49,8 @@ async def watch_events(websocket: WebSocket):
                                 ).model_dump()
                             )
 
+                    # print(f"Collision button event: {event}")
+
                 except WebSocketDisconnect:
                     break
 
