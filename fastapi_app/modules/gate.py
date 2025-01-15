@@ -1,92 +1,89 @@
-import atexit
 import os
-from contextlib import asynccontextmanager
-from enum import Enum
-from typing import Annotated, Final
+from typing import Annotated
 
-from fastapi import APIRouter, Form
+from fastapi import APIRouter, Form, Path
 from pydantic import BaseModel, Field
 
-from fastapi_app.gpio_modules import ServoHwPwm
-from fastapi_app.utils.request_queue import RequestQueue
+from fastapi_app.base_module import Servo as GPIOServo
+from fastapi_app.base_module import ServoMoveRequest
+from fastapi_app.utils import RunOnShutdown
+
+GATE_CLOSE_ANGLE = int(os.getenv("GATE_CLOSE_ANGLE", -45))
+GATE_OPEN_ANGLE = int(os.getenv("GATE_OPEN_ANGLE", 0))
+
+GATE_1_ANGLE_OFFSET = float(os.getenv("GATE_1_ANGLE_OFFSET", 0))
+GATE_2_ANGLE_OFFSET = float(os.getenv("GATE_2_ANGLE_OFFSET", 0))
+
+gate_1 = GPIOServo(
+    10,
+    min_pulse_width=0.5475 / 1000,
+    max_pulse_width=2.46 / 1000,
+    angle_offset=GATE_1_ANGLE_OFFSET,
+)
+gate_1.schedule(ServoMoveRequest(GATE_CLOSE_ANGLE, 0), block=True)
+RunOnShutdown.add(gate_1.close)
 
 
-class GateState(str, Enum):
-    OPEN = "open"
-    CLOSE = "close"
+gate_2 = GPIOServo(
+    9,
+    min_pulse_width=0.555 / 1000,
+    max_pulse_width=2.49 / 1000,
+    angle_offset=GATE_2_ANGLE_OFFSET,
+)
+gate_2.schedule(ServoMoveRequest(GATE_CLOSE_ANGLE, 0), block=True)
+RunOnShutdown.add(gate_2.close)
 
 
-class Gate:
-    OPEN_ANGLE: Final = int(os.getenv("GATE_OPEN_ANGLE", 90))
-    CLOSE_ANGLE: Final = int(os.getenv("GATE_CLOSE_ANGLE", 180))
-    GATE_ANGLE_OFFSET: Final = float(os.getenv("GATE_ANGLE_OFFSET", 0.3))
-
-    def __init__(self):
-        print(
-            f"Gate: OPEN_ANGLE={self.OPEN_ANGLE}, "
-            f"CLOSE_ANGLE={self.CLOSE_ANGLE}, "
-            f"GATE_ANGLE_OFFSET={self.GATE_ANGLE_OFFSET}"
-        )
-
-        self._servo = ServoHwPwm(
-            pwm_channel=0,
-            initial_angle=self.CLOSE_ANGLE,
-            angle_offset=self.GATE_ANGLE_OFFSET,
-        )
-
-        self.set_status(GateState.CLOSE)
-        atexit.register(self._servo._cleanup)
-
-    def set_status(self, state: GateState):
-        match state:
-            case GateState.CLOSE:
-                self._servo.ease_angle(self.CLOSE_ANGLE, ease_seconds=0.5)
-
-            case GateState.OPEN:
-                self._servo.ease_angle(self.OPEN_ANGLE, ease_seconds=0.5)
-
-        self.current_state = state
-
-
-class GateStateResponse(BaseModel):
-    state: GateState = Field(
-        description="Current state of the gate",
-        examples=["open", "close"],
+class GateFormData(BaseModel):
+    angle: float = Field(
+        description="Angle in degrees",
+        examples=[-45, 0, 10, 45],
+        ge=gate_1.min_angle,
+        le=gate_1.max_angle,
     )
-
-
-gate = Gate()
-request_queue = RequestQueue(3)
-
-
-@asynccontextmanager
-async def lifespan(app: APIRouter):
-    yield
-    request_queue.shutdown()
+    duration: float = Field(
+        description="Duration in seconds",
+        examples=[0.5, 1.0],
+        ge=0,
+        le=2,
+        default=0,
+    )
 
 
 router = APIRouter(
     prefix="/gate",
     tags=["gate (module MG90S)"],
-    lifespan=lifespan,
 )
 
 
-@router.get(
-    "/",
-    summary="Get gate state",
-    response_model=GateStateResponse,
-)
-def read_gate():
-    return GateStateResponse(state=gate.current_state)
+# @router.get(
+#     "/",
+#     summary="Get gate state",
+#     response_model=GateFormData,
+# )
+# def read_gate():
+#     return GateFormData(state=gate.current_state)
 
 
 @router.patch(
-    "/",
+    "/{gate_id}",
     summary="Set gate state",
-    response_model=GateStateResponse,
+    response_model=GateFormData,
 )
-def set_gate(state: Annotated[GateState, Form()]):
-    request_queue.submit(gate.set_status, state)
+def set_gate(
+    data: Annotated[GateFormData, Form()],
+    gate_id: Annotated[int, Path(ge=1, le=2)],
+):
+    match gate_id:
+        case 1:
+            gate_1.schedule(
+                ServoMoveRequest(data.angle, data.duration), block=False
+            )
+        case 2:
+            gate_2.schedule(
+                ServoMoveRequest(data.angle, data.duration), block=False
+            )
+        case _:
+            raise ValueError(f"Invalid gate_id: {gate_id}")
 
-    return GateStateResponse(state=gate.current_state)
+    return data
