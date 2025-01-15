@@ -1,9 +1,6 @@
 import os
-import queue
 import sys
-import threading
 import time
-from contextlib import contextmanager
 
 from gpiozero import TonalBuzzer as GPIOTonalBuzzer
 from gpiozero.tones import Tone
@@ -12,6 +9,8 @@ from gpiozero.tones import Tone
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from common import pi_gpio_factory
+
+from fastapi_app.base_module.request_queued_thread import RequestQueuedThread
 
 
 class BuzzerPlayRequest:
@@ -27,14 +26,27 @@ class Buzzer:
         )
         # atexit.register(self.gpio_buzzer.close)
 
-        self._play_queue: queue.Queue[BuzzerPlayRequest] = queue.Queue(
-            queue_size
+        self._queue_size = queue_size
+        self._play_queued_thread = self._setup_queued_thread()
+
+    def _setup_queued_thread(self) -> RequestQueuedThread:
+        def _serve_request(
+            request: BuzzerPlayRequest, next_request_available: bool
+        ):
+            self.gpio_buzzer.play(request.tone)
+            time.sleep(request.duration)
+
+            if not next_request_available:
+                self.gpio_buzzer.stop()
+
+        def _cleanup():
+            self.gpio_buzzer.stop()
+
+        return RequestQueuedThread(
+            _serve_request,
+            _cleanup,
+            queue_size=self._queue_size,
         )
-        self._buzzer_thread = threading.Thread(
-            target=self._buzzer_thread_loop,
-            args=(self._play_queue, self.gpio_buzzer),
-        )
-        self._buzzer_thread.start()
 
     @property
     def max_frequency(self) -> float:
@@ -44,29 +56,6 @@ class Buzzer:
     def min_frequency(self) -> float:
         return self.gpio_buzzer.min_tone.frequency
 
-    @staticmethod
-    def _buzzer_thread_loop(
-        queue: queue.Queue[BuzzerPlayRequest],
-        gpio_buzzer: GPIOTonalBuzzer,
-    ):
-        @contextmanager
-        def _get_request():
-            request = queue.get()
-            yield request
-            if queue.empty():
-                gpio_buzzer.stop()
-            queue.task_done()
-
-        while True:
-            with _get_request() as request:
-                if request is None:
-                    break
-
-                gpio_buzzer.play(request.tone)
-                time.sleep(request.duration)
-
-        # print("Exiting main thread loop")
-
     def __enter__(self):
         return self
 
@@ -74,42 +63,29 @@ class Buzzer:
         self.close()
 
     def close(self):
-        # print("Closing")
-
-        try:
-            self._clear_queue()
-            self._play_queue.put_nowait(None)
-            self._buzzer_thread.join()
-        finally:
-            # Must run this to ensure the buzzer is stopped.
-            self.gpio_buzzer.close()
-
-    def _clear_queue(self):
-        while not self._play_queue.empty():
-            self._play_queue.get_nowait()
-            self._play_queue.task_done()
+        self._play_queued_thread.close()
+        # self.gpio_buzzer.close()
 
     def schedule(self, request: BuzzerPlayRequest, block=True):
-        if request is None:
-            raise ValueError("Request cannot be None")
-
-        self._play_queue.put(request, block=block)
+        self._play_queued_thread.schedule(request, block=block)
 
     def join_queue(self):
-        self._play_queue.join()
+        self._play_queued_thread.join_queue()
 
 
 def main():
     with Buzzer(21) as buzzer:
         for midi_note in range(
-            buzzer.gpio_buzzer.mid_tone.midi,
+            buzzer.gpio_buzzer.mid_tone.midi - 15,
             buzzer.gpio_buzzer.mid_tone.midi + 15,
             5,
         ):
-            tone = Tone(midi_note)
-            print(f"Add {tone.midi} - fq: {tone.frequency} - note: {tone.note}")
+            tone = Tone(midi=midi_note)
 
-            buzzer.schedule(BuzzerPlayRequest(tone, 1))
+            buzzer.schedule(BuzzerPlayRequest(tone, 2))
+            print(
+                f"Added {tone.midi} - fq: {tone.frequency} - note: {tone.note}"
+            )
             time.sleep(0.1)
 
         buzzer.join_queue()

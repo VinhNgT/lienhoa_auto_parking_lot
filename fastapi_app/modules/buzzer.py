@@ -22,7 +22,7 @@ class BuzzerFormData(BaseModel):
     duration: float = Field(
         description="Duration in seconds",
         examples=[0.5, 1.0],
-        ge=0.1,
+        ge=0.01,
         le=5,
     )
 
