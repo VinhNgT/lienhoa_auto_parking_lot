@@ -5,13 +5,16 @@ import queue
 import sys
 from datetime import datetime, timezone
 from enum import Enum
+from threading import Timer
+
+from gpiozero import Button as GPIOButton
 
 # Add current script folder to Python path.
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+
 from common import pi_gpio_factory
 from event_generator import SingleSourceEventGenerator
-from gpiozero import Button as GPIOButton
 
 
 class ButtonEvent(Enum):
@@ -20,24 +23,53 @@ class ButtonEvent(Enum):
 
 
 class Button:
-    def __init__(self, pin: int):
+    def __init__(self, pin: int, debounce_time: float = 0.1):
         # Use PiGPIO to avoid vscode freeze bug.
         self.gpio_button = GPIOButton(
             pin,
             pin_factory=pi_gpio_factory,
             # Debounce time set to 1 FPS
-            bounce_time=1 / 60,
+            # bounce_time=1 / 60,
         )
 
+        self._debounce_time = debounce_time
         self._event_generator = self._setup_event_generator()
 
     def _setup_event_generator(self) -> SingleSourceEventGenerator[ButtonEvent]:
+        is_pressing_down = False
+        release_timer: Timer | None = None
+
+        # Take the first press down and the last press up.
+        def _debounce_event(queue: queue.Queue[ButtonEvent], event):
+            nonlocal is_pressing_down
+            nonlocal release_timer
+
+            def release():
+                nonlocal is_pressing_down
+                is_pressing_down = False
+                queue.put(ButtonEvent.RELEASED)
+
+            if event == ButtonEvent.PRESSED and not is_pressing_down:
+                queue.put(ButtonEvent.PRESSED)
+                is_pressing_down = True
+                return
+
+            if event == ButtonEvent.RELEASED and is_pressing_down:
+                if (
+                    release_timer is not None
+                    and not release_timer.finished.is_set()
+                ):
+                    release_timer.cancel()
+
+                release_timer = Timer(self._debounce_time, release)
+                release_timer.start()
+
         def _setup_gpio(queue: queue.Queue[ButtonEvent]):
-            self.gpio_button.when_pressed = lambda: queue.put(
-                ButtonEvent.PRESSED
+            self.gpio_button.when_pressed = lambda: _debounce_event(
+                queue, ButtonEvent.PRESSED
             )
-            self.gpio_button.when_released = lambda: queue.put(
-                ButtonEvent.RELEASED
+            self.gpio_button.when_released = lambda: _debounce_event(
+                queue, ButtonEvent.RELEASED
             )
 
         def _clear_gpio():
