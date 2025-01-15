@@ -1,28 +1,17 @@
-import atexit
-import threading
+import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, Form
 from pydantic import BaseModel, Field
 
-from fastapi_app.gpio_modules import LcdI2c
+from fastapi_app.base_module import LcdI2c
+from fastapi_app.utils import RunOnShutdown
 
+screen = LcdI2c(i2c_bus=8)
+RunOnShutdown.add(screen.close)
 
-class LcdScreen:
-    def __init__(self):
-        self._lcd = LcdI2c(i2c_bus=8)
-        self._lock = threading.Lock()
-
-        atexit.register(self.cleanup)
-
-    def write_string(self, text: str):
-        with self._lock:
-            self._lcd.write_string(text)
-
-    def cleanup(self):
-        self._lcd.clear()
-        self.write_string("LCD connection closed")
-        self._lcd.close()
+# Lock to prevent multiple request from accessing the screen at the same time
+screen_request_lock = asyncio.Lock()
 
 
 class LcdFormData(BaseModel):
@@ -40,7 +29,6 @@ router = APIRouter(
     prefix="/screen",
     tags=["screen (module 2004A with PCF8574 I2C backpack)"],
 )
-screen = LcdScreen()
 
 
 @router.post(
@@ -48,6 +36,7 @@ screen = LcdScreen()
     summary="Set lcd screen text",
     response_model=LcdResponse,
 )
-def set_lcd_text(data: Annotated[LcdFormData, Form()]):
-    screen.write_string(data.text)
+async def set_lcd_text(data: Annotated[LcdFormData, Form()]):
+    async with screen_request_lock:
+        screen.write_string(data.text)
     return LcdResponse(text=data.text)

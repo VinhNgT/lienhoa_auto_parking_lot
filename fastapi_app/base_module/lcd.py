@@ -1,10 +1,4 @@
-# ruff: noqa: F401
-
-import atexit
-import os
-import random
 import re
-import sys
 import time
 from itertools import chain
 from typing import Final
