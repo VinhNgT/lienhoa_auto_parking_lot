@@ -1,29 +1,23 @@
-import atexit
-from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import APIRouter, Form
+from gpiozero.tones import Tone
 from pydantic import BaseModel, Field
 
-from fastapi_app.gpio_modules import BuzzerHwPwm
-from fastapi_app.utils.request_queue import RequestQueue
+from fastapi_app.base_module import Buzzer as GPIOBuzzer
+from fastapi_app.base_module import BuzzerPlayRequest
+from fastapi_app.utils import RunOnShutdown
 
-
-class Buzzer:
-    def __init__(self):
-        self._buzzer = BuzzerHwPwm(pwm_channel=1)
-        atexit.register(self._buzzer.cleanup)
-
-    def beep(self, frequency, duration):
-        self._buzzer.beep(frequency, duration)
+buzzer = GPIOBuzzer(21)
+RunOnShutdown.add(buzzer.close)
 
 
 class BuzzerFormData(BaseModel):
     frequency: float = Field(
         description="Frequency in Hz",
         examples=[600, 1000],
-        ge=0.1,
-        le=1000,
+        ge=buzzer.min_frequency,
+        le=buzzer.max_frequency,
     )
     duration: float = Field(
         description="Duration in seconds",
@@ -33,20 +27,9 @@ class BuzzerFormData(BaseModel):
     )
 
 
-buzzer = Buzzer()
-request_queue = RequestQueue(3)
-
-
-@asynccontextmanager
-async def lifespan(app: APIRouter):
-    yield
-    request_queue.shutdown()
-
-
 router = APIRouter(
     prefix="/buzzer",
     tags=["buzzer (passive)"],
-    lifespan=lifespan,
 )
 
 
@@ -56,6 +39,7 @@ router = APIRouter(
     response_model=BuzzerFormData,
 )
 def set_buzzer(data: Annotated[BuzzerFormData, Form()]):
-    request_queue.submit(buzzer.beep, data.frequency, data.duration)
+    tone = Tone(data.frequency)
+    buzzer.schedule(BuzzerPlayRequest(tone, data.duration), block=False)
 
     return BuzzerFormData(frequency=data.frequency, duration=data.duration)

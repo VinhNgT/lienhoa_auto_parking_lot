@@ -21,18 +21,28 @@ class BuzzerPlayRequest:
 
 
 class Buzzer:
-    def __init__(self, pin: int):
+    def __init__(self, pin: int, queue_size: int = 3):
         self.gpio_buzzer = GPIOTonalBuzzer(
             pin, pin_factory=pi_gpio_factory, octaves=2
         )
         # atexit.register(self.gpio_buzzer.close)
 
-        self._play_queue: queue.Queue[BuzzerPlayRequest] = queue.Queue()
+        self._play_queue: queue.Queue[BuzzerPlayRequest] = queue.Queue(
+            queue_size
+        )
         self._buzzer_thread = threading.Thread(
             target=self._buzzer_thread_loop,
             args=(self._play_queue, self.gpio_buzzer),
         )
         self._buzzer_thread.start()
+
+    @property
+    def max_frequency(self) -> float:
+        return self.gpio_buzzer.max_tone.frequency
+
+    @property
+    def min_frequency(self) -> float:
+        return self.gpio_buzzer.min_tone.frequency
 
     @staticmethod
     def _buzzer_thread_loop(
@@ -79,11 +89,11 @@ class Buzzer:
             self._play_queue.get_nowait()
             self._play_queue.task_done()
 
-    def schedule(self, request: BuzzerPlayRequest):
+    def schedule(self, request: BuzzerPlayRequest, block=True):
         if request is None:
             raise ValueError("Request cannot be None")
 
-        self._play_queue.put(request)
+        self._play_queue.put(request, block=block)
 
     def join_queue(self):
         self._play_queue.join()
