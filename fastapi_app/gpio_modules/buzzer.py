@@ -9,8 +9,7 @@ from gpiozero.tones import Tone
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from common import pi_gpio_factory
-
-from fastapi_app.gpio_modules.request_queued_thread import RequestQueuedThread
+from request_queued_thread import RequestQueuedThread
 
 
 class BuzzerPlayRequest:
