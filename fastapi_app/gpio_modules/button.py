@@ -91,8 +91,8 @@ async def async_main():
                     print("Button released! at ", current_time)
                     press_count += 1
 
-            if press_count >= 5:
-                button.close()
+            # if press_count >= 5:
+            #     button.close()
 
 
 if __name__ == "__main__":
