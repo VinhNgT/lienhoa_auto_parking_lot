@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from common import pi_gpio_factory
 
-from fastapi_app.base_module.request_queued_thread import RequestQueuedThread
+from fastapi_app.gpio_modules.request_queued_thread import RequestQueuedThread
 
 
 class BuzzerPlayRequest:

@@ -4,8 +4,8 @@ from typing import Annotated
 from fastapi import APIRouter, Form, Path
 from pydantic import BaseModel, Field
 
-from fastapi_app.base_module import Servo as GPIOServo
-from fastapi_app.base_module import ServoMoveRequest
+from fastapi_app.gpio_modules import Servo as GPIOServo
+from fastapi_app.gpio_modules import ServoMoveRequest
 from fastapi_app.utils import RunOnShutdown
 
 GATE_CLOSE_ANGLE = int(os.getenv("GATE_CLOSE_ANGLE", -45))

@@ -6,7 +6,7 @@ from adafruit_extended_bus import ExtendedI2C as I2C
 from fastapi import APIRouter, Form
 from pydantic import BaseModel, Field
 
-from fastapi_app.base_module import LedsPcf8574
+from fastapi_app.gpio_modules import LedsPcf8574
 from fastapi_app.utils import RunOnShutdown
 
 leds = LedsPcf8574(I2C(7), reverse_layout=True, led_count=4)

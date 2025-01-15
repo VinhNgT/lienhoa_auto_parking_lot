@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Form
 from pydantic import BaseModel, Field
 
-from fastapi_app.base_module import LcdI2c
+from fastapi_app.gpio_modules import LcdI2c
 from fastapi_app.utils import RunOnShutdown
 
 screen = LcdI2c(i2c_bus=8)

@@ -5,7 +5,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from starlette.websockets import WebSocketState
 
-from fastapi_app.base_module.button import Button, ButtonEvent
+from fastapi_app.gpio_modules.button import Button, ButtonEvent
 from fastapi_app.utils import RunOnShutdown, time_utils
 
 button = Button(26)

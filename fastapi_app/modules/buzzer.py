@@ -4,8 +4,8 @@ from fastapi import APIRouter, Form
 from gpiozero.tones import Tone
 from pydantic import BaseModel, Field
 
-from fastapi_app.base_module import Buzzer as GPIOBuzzer
-from fastapi_app.base_module import BuzzerPlayRequest
+from fastapi_app.gpio_modules import Buzzer as GPIOBuzzer
+from fastapi_app.gpio_modules import BuzzerPlayRequest
 from fastapi_app.utils import RunOnShutdown
 
 buzzer = GPIOBuzzer(21)

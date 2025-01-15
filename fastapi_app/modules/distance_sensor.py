@@ -6,7 +6,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from starlette.websockets import WebSocketState
 
-from fastapi_app.base_module.ultrasonic_sensor import UltrasonicSensor
+from fastapi_app.gpio_modules.ultrasonic_sensor import UltrasonicSensor
 from fastapi_app.utils import RunOnShutdown, time_utils
 
 sensor = UltrasonicSensor(board.D23, board.D24)
