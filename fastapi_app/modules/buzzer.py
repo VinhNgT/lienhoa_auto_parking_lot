@@ -42,4 +42,4 @@ def set_buzzer(data: Annotated[BuzzerFormData, Form()]):
     tone = Tone(data.frequency)
     buzzer.schedule(BuzzerPlayRequest(tone, data.duration), block=False)
 
-    return BuzzerFormData(frequency=data.frequency, duration=data.duration)
+    return data
