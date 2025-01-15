@@ -18,18 +18,26 @@ MAX_DISTANCE = 300
 
 
 class UltrasonicSensor:
-    def __init__(
-        self, trigger_pin: int, echo_pin: int, sample_interval: float = 1
-    ):
+    def __init__(self, trigger_pin, echo_pin):
         self.trigger_pin = trigger_pin
         self.echo_pin = echo_pin
-        self.sample_interval = sample_interval
 
         self._event_thread: threading.Thread | None = None
         self._stop_event_flag = threading.Event()
+
+        self._current_sample_interval = None
         self._event_generator = self._setup_event_generator()
 
-    def _setup_event_generator(self) -> SingleSourceEventGenerator[float]:
+    def set_sample_interval(self, sample_interval: float):
+        if self._current_sample_interval != sample_interval:
+            self.close()
+            self._event_generator = self._setup_event_generator(sample_interval)
+
+    def _setup_event_generator(
+        self, sample_interval: float = 1
+    ) -> SingleSourceEventGenerator[float]:
+        self._current_sample_interval = sample_interval
+
         def _live_thread_loop(
             on_event: Callable[[float], None], stop_event_flag: threading.Event
         ):
@@ -53,7 +61,7 @@ class UltrasonicSensor:
                             raise
 
                     on_event(round(min(current_value, MAX_DISTANCE), 3))
-                    time.sleep(self.sample_interval)
+                    time.sleep(sample_interval)
 
         def _setup_gpio(queue: queue.Queue[float]):
             def on_event(distance: float):

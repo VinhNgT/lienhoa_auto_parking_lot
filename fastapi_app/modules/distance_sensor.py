@@ -9,7 +9,7 @@ from starlette.websockets import WebSocketState
 from fastapi_app.base_module.ultrasonic_sensor import UltrasonicSensor
 from fastapi_app.utils import RunOnShutdown, time_utils
 
-sensor = UltrasonicSensor(board.D23, board.D24, sample_interval=0.1)
+sensor = UltrasonicSensor(board.D23, board.D24)
 RunOnShutdown.add(sensor.close)
 
 router = APIRouter(
@@ -25,8 +25,9 @@ class DistanceSensorResponse(BaseModel):
 
 
 @router.websocket("/watch")
-async def watch_events(websocket: WebSocket):
+async def watch_events(websocket: WebSocket, interval: float):
     await websocket.accept()
+    sensor.set_sample_interval(interval)
 
     async def _wait_event():
         async with contextlib.aclosing(sensor.async_wait_event()) as wait_event:
