@@ -78,6 +78,8 @@ async def async_main():
     button = Button(26)
     print("Waiting for button press...")
 
+    press_count = 0
+
     async with contextlib.aclosing(button.async_wait_event()) as wait_event:
         async for event in wait_event:
             current_time = str(datetime.now(timezone.utc).isoformat())
@@ -87,8 +89,19 @@ async def async_main():
                     print("Button pressed! at ", current_time)
                 case ButtonEvent.RELEASED:
                     print("Button released! at ", current_time)
+                    press_count += 1
+
+            if press_count >= 5:
+                button.close()
 
 
 if __name__ == "__main__":
-    # main()
-    asyncio.run(async_main())
+    test = 2
+
+    match test:
+        case 1:
+            print("Running main()")
+            main()
+        case 2:
+            print("Running async_main()")
+            asyncio.run(async_main())

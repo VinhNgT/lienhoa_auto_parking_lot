@@ -33,8 +33,9 @@ class SingleSourceEventGenerator(Generic[T]):
         self._stop_generator()
 
     def _stop_generator(self):
-        self._clear_queue()
         if self._lock.locked():
+            self._cleanup()
+            self._clear_queue()
             self._event_queue.put_nowait(None)
             self._event_queue.join()
 
@@ -63,8 +64,8 @@ class SingleSourceEventGenerator(Generic[T]):
                             break
                         yield event
             finally:
-                self._clear_queue()
                 self._cleanup()
+                self._clear_queue()
 
     async def async_wait_event(self) -> AsyncGenerator[T, None]:
         loop = asyncio.get_event_loop()
