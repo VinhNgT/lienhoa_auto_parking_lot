@@ -8,19 +8,21 @@ import time
 from datetime import datetime, timezone
 from typing import Callable
 
-from adafruit_hcsr04 import HCSR04
+from gpiozero import DistanceSensor
+
+# from adafruit_hcsr04 import HCSR04
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-import board
-from event_generator import SingleSourceEventGenerator
 
-MAX_DISTANCE = 300
+from common import pi_gpio_factory
+from event_generator import SingleSourceEventGenerator
 
 
 class UltrasonicSensor:
-    def __init__(self, trigger_pin, echo_pin):
-        self.trigger_pin = trigger_pin
-        self.echo_pin = echo_pin
+    def __init__(self, trigger_pin: int, echo_pin: int):
+        self._sensor = DistanceSensor(
+            trigger=trigger_pin, echo=echo_pin, pin_factory=pi_gpio_factory
+        )
 
         self._event_thread: threading.Thread | None = None
         self._stop_event_flag = threading.Event()
@@ -41,27 +43,14 @@ class UltrasonicSensor:
         def _live_thread_loop(
             on_event: Callable[[float], None], stop_event_flag: threading.Event
         ):
-            with HCSR04(
-                trigger_pin=self.trigger_pin, echo_pin=self.echo_pin
-            ) as sonar:
-                while True:
-                    if stop_event_flag.is_set():
-                        break
+            while True:
+                if stop_event_flag.is_set():
+                    break
+                # Use cm instead of m
+                current_value = self._sensor.distance * 100
+                on_event(round(current_value, 3))
 
-                    if sonar._echo._process.poll() == 0:
-                        # print("CircuitPython PulseIn subprocess was closed!")
-                        break
-
-                    try:
-                        current_value = sonar.distance
-                    except RuntimeError as e:
-                        if str(e) == "Timed out":
-                            current_value = MAX_DISTANCE
-                        else:
-                            raise
-
-                    on_event(round(min(current_value, MAX_DISTANCE), 3))
-                    time.sleep(sample_interval)
+                time.sleep(sample_interval)
 
         def _setup_gpio(queue: queue.Queue[float]):
             def on_event(distance: float):
@@ -95,14 +84,17 @@ class UltrasonicSensor:
 
 
 def main():
-    sensor = UltrasonicSensor(board.D23, board.D24)
+    sensor = UltrasonicSensor(23, 24)
+    sensor.set_sample_interval(0.1)
+
     for event in sensor.wait_event():
         current_time = str(datetime.now(timezone.utc).isoformat())
         print("Distance: ", event, " at ", current_time)
 
 
 async def async_main():
-    sensor = UltrasonicSensor(board.D23, board.D24, sample_interval=0.1)
+    sensor = UltrasonicSensor(23, 24)
+    sensor.set_sample_interval(0.1)
 
     async with contextlib.aclosing(sensor.async_wait_event()) as wait_event:
         async for event in wait_event:
