@@ -42,10 +42,13 @@ dtoverlay=disable-bt
 
 This package uses pigpio for much better GPIO timing accuracy.
 
-```bash
-sudo systemctl enable pigpiod.service
-sudo systemctl start pigpiod.service
-```
+- First run `sudo raspi-config` and enable remote GPIO in `Interface Options`
+- Then enable pigpio:
+
+  ```bash
+  sudo systemctl enable pigpiod.service
+  sudo systemctl start pigpiod.service
+  ```
 
 ## Quick start
 

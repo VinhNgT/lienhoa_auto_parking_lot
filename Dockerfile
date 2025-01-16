@@ -13,4 +13,7 @@ RUN pip install --no-cache-dir -r /code/requirements.txt
 COPY ./fastapi_app /code/fastapi_app
 COPY ./version.txt /code/version.txt
 
+# RUN apt-get update && apt-get install -y iputils-ping
+ENV IS_DOCKER=true
+
 CMD ["fastapi", "run", "fastapi_app/main.py", "--port", "80"]
