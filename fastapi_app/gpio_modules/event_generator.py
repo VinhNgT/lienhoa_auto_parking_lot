@@ -28,15 +28,20 @@ class SingleSourceEventGenerator(Generic[T]):
         self._event_queue: queue.Queue[T] = queue.Queue(queue_size)
         self._lock = threading.Lock()
         self._async_lock = asyncio.Lock()
+        self._generator_stopping = False
 
     def close(self):
         self._stop_generator()
 
     def _stop_generator(self):
-        if self._lock.locked():
+        if self._lock.locked() and not self._generator_stopping:
+            self._generator_stopping = True
             self._cleanup()
             self._clear_queue()
             self._event_queue.put_nowait(None)
+            self._event_queue.join()
+            self._generator_stopping = False
+        else:
             self._event_queue.join()
 
     def _clear_queue(self):
