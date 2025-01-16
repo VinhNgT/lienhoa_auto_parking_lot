@@ -23,7 +23,7 @@ class ButtonEvent(Enum):
 
 
 class Button:
-    def __init__(self, pin: int, debounce_time: float = 0.1):
+    def __init__(self, pin: int, debounce_time: float = 1 / 60):
         # Use PiGPIO to avoid vscode freeze bug.
         self.gpio_button = GPIOButton(
             pin,
@@ -49,20 +49,27 @@ class Button:
                 is_pressing_down = False
                 queue.put(ButtonEvent.RELEASED)
 
-            if event == ButtonEvent.PRESSED and not is_pressing_down:
-                queue.put(ButtonEvent.PRESSED)
-                is_pressing_down = True
-                return
-
-            if event == ButtonEvent.RELEASED and is_pressing_down:
+            def reset_release_timer():
                 if (
                     release_timer is not None
                     and not release_timer.finished.is_set()
                 ):
                     release_timer.cancel()
 
+            if event == ButtonEvent.PRESSED and not is_pressing_down:
+                queue.put(ButtonEvent.PRESSED)
+                is_pressing_down = True
+                return
+
+            if event == ButtonEvent.RELEASED and is_pressing_down:
+                reset_release_timer()
                 release_timer = Timer(self._debounce_time, release)
                 release_timer.start()
+                return
+
+            if event == ButtonEvent.PRESSED and is_pressing_down:
+                reset_release_timer()
+                return
 
         def _setup_gpio(queue: queue.Queue[ButtonEvent]):
             self.gpio_button.when_pressed = lambda: _debounce_event(
