@@ -9,8 +9,8 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Callable
 
-from adafruit_extended_bus import ExtendedI2C as I2C
-from adafruit_pn532.i2c import PN532_I2C
+import serial
+from adafruit_pn532.uart import PN532_UART
 from gpiozero.tones import Tone
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -24,8 +24,7 @@ PN532_RESTART_EXCEPTIONS = [
 
 
 class RfidModule:
-    def __init__(self, i2c, buzzer: Buzzer | None = None):
-        self._i2c = i2c
+    def __init__(self, buzzer: Buzzer | None = None):
         self._buzzer = buzzer
 
         self._event_thread: threading.Thread | None = None
@@ -37,11 +36,14 @@ class RfidModule:
         ic, ver, rev, support = self._pn532.firmware_version
         print("Found PN532 with firmware version: {0}.{1}".format(ver, rev))
 
-    def _init_pn532(self) -> PN532_I2C:
+    def _init_pn532(self) -> PN532_UART:
         init_attempts = 10
         for i in range(init_attempts):
             try:
-                pn532 = PN532_I2C(self._i2c, debug=False)
+                uart = serial.Serial(
+                    "/dev/ttyAMA0", baudrate=115200, timeout=0.1
+                )
+                pn532 = PN532_UART(uart, debug=False)
                 pn532.SAM_configuration()
                 break
             except RuntimeError as e:
@@ -143,7 +145,7 @@ class RfidModule:
 
 def main():
     with Buzzer(21) as buzzer:
-        rfid = RfidModule(I2C(6), buzzer)
+        rfid = RfidModule(buzzer)
 
         print("Waiting for RFID/NFC card")
         for event in rfid.wait_event():
@@ -153,7 +155,7 @@ def main():
 
 async def async_main():
     with Buzzer(21) as buzzer:
-        rfid = RfidModule(I2C(6), buzzer)
+        rfid = RfidModule(buzzer)
 
         print("Waiting for RFID/NFC card")
         async with contextlib.aclosing(rfid.async_wait_event()) as wait_event:
@@ -163,7 +165,7 @@ async def async_main():
 
 
 if __name__ == "__main__":
-    test = 2
+    test = 1
 
     match test:
         case 1:

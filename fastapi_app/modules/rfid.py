@@ -1,7 +1,6 @@
 import asyncio
 import contextlib
 
-from adafruit_extended_bus import ExtendedI2C as I2C
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from starlette.websockets import WebSocketState
@@ -10,7 +9,7 @@ from fastapi_app.gpio_modules.rfid_module import RfidModule as GPIORfid
 from fastapi_app.modules.buzzer import buzzer
 from fastapi_app.utils import RunOnShutdown, time_utils
 
-rfid = GPIORfid(I2C(6), buzzer)
+rfid = GPIORfid(buzzer)
 RunOnShutdown.add(rfid.close)
 
 router = APIRouter(
