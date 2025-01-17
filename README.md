@@ -13,14 +13,14 @@ API for controlling gate states (open/close, status lights, LCD screen,...).
 Add the following lines to `/boot/firmware/config.txt` or `/boot/config.txt` to configure hardware PWM, software I2C, and disable Bluetooth:
 
 ```ini
-# Hardware PWM
-dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4
-
 # Software I2C
 dtoverlay=i2c-gpio,i2c_gpio_sda=23,i2c_gpio_scl=24,bus=8
+dtoverlay=i2c-gpio,i2c_gpio_sda=25,i2c_gpio_scl=8,bus=7
+dtoverlay=i2c-gpio,i2c_gpio_sda=5,i2c_gpio_scl=6,bus=6
 
 # Disable Bluetooth, free up serial connection
 dtoverlay=disable-bt
+enable_uart=1
 ```
 
 ### Increase swap size and increase responsiveness
