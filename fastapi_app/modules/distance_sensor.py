@@ -8,7 +8,7 @@ from starlette.websockets import WebSocketState
 from fastapi_app.gpio_modules.ultrasonic_sensor import UltrasonicSensor
 from fastapi_app.utils import RunOnShutdown, time_utils
 
-sensor = UltrasonicSensor(23, 24)
+sensor = UltrasonicSensor(trigger_pin=27, echo_pin=22)
 RunOnShutdown.add(sensor.close)
 
 router = APIRouter(
