@@ -54,7 +54,7 @@ class LedsPcf8574:
             not state,
         )
 
-    def set_leds_byte(self, byte: int, reverse_byte=True):
+    def set_leds_byte(self, byte: int, reverse_byte=False):
         if byte < 0 or byte > self.max_byte:
             raise ValueError(
                 f"byte must be between 0x00 and {hex(self.max_byte)}"
