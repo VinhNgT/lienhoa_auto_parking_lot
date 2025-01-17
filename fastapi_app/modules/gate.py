@@ -15,9 +15,9 @@ GATE_1_ANGLE_OFFSET = float(os.getenv("GATE_1_ANGLE_OFFSET", 0))
 GATE_2_ANGLE_OFFSET = float(os.getenv("GATE_2_ANGLE_OFFSET", 0))
 
 gate_1 = GPIOServo(
-    10,
-    min_pulse_width=0.5475 / 1000,
-    max_pulse_width=2.46 / 1000,
+    9,
+    min_pulse_width=0.55 / 1000,
+    max_pulse_width=2.485 / 1000,
     angle_offset=GATE_1_ANGLE_OFFSET,
 )
 gate_1.schedule(ServoMoveRequest(GATE_CLOSE_ANGLE, 0), block=True)
@@ -25,9 +25,9 @@ RunOnShutdown.add(gate_1.close)
 
 
 gate_2 = GPIOServo(
-    9,
-    min_pulse_width=0.555 / 1000,
-    max_pulse_width=2.49 / 1000,
+    10,
+    min_pulse_width=0.5475 / 1000,
+    max_pulse_width=2.46 / 1000,
     angle_offset=GATE_2_ANGLE_OFFSET,
 )
 gate_2.schedule(ServoMoveRequest(GATE_CLOSE_ANGLE, 0), block=True)

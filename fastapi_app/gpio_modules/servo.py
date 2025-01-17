@@ -1,3 +1,4 @@
+import atexit
 import math
 import os
 import sys
@@ -177,44 +178,28 @@ def main():
             # time.sleep(1)
 
 
+def calibrate_servo(pin_id: int):
+    servo = GPIOAngularServo(
+        pin_id,
+        pin_factory=pi_gpio_factory,
+        min_pulse_width=0.55 / 1000,
+        max_pulse_width=2.485 / 1000,
+        # min_pulse_width=0.555 / 1000,
+        # max_pulse_width=2.49 / 1000,
+        min_angle=-45,
+        max_angle=45,
+    )
+    atexit.register(servo.close)
+
+    while True:
+        print("Min")
+        servo.min()
+        time.sleep(5)
+        print("Max")
+        servo.max()
+        time.sleep(5)
+
+
 if __name__ == "__main__":
+    # calibrate_servo(9)
     main()
-
-
-# servo_1 = GPIOAngularServo(
-#     10,
-#     pin_factory=pi_gpio_factory,
-#     min_pulse_width=0.5475 / 1000,
-#     max_pulse_width=2.46 / 1000,
-#     min_angle=-45,
-#     max_angle=45,
-# )
-# atexit.register(servo_1.close)
-
-# servo_2 = GPIOAngularServo(
-#     9,
-#     pin_factory=pi_gpio_factory,
-#     min_pulse_width=0.555 / 1000,
-#     max_pulse_width=2.49 / 1000,
-#     min_angle=-45,
-#     max_angle=45,
-# )
-# atexit.register(servo_2.close)
-
-
-# def calibrate_servo(pin_id: int):
-#     servo = GPIOAngularServo(
-#         pin_id,
-#         pin_factory=pi_gpio_factory,
-#         min_pulse_width=0.555 / 1000,
-#         max_pulse_width=2.49 / 1000,
-#     )
-#     atexit.register(servo.close)
-
-#     while True:
-#         print("Min")
-#         servo.min()
-#         time.sleep(5)
-#         print("Max")
-#         servo.max()
-#         time.sleep(5)
