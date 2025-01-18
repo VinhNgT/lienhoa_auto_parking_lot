@@ -108,6 +108,16 @@ class LcdI2c:
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
+    def _reinit_lcd(self):
+        self._lcd.close(clear=True)
+        self._lcd = CharLCD(
+            i2c_expander="PCF8574",
+            address=self._lcd._address,
+            port=self._lcd._port,
+            cols=20,
+            rows=4,
+        )
+
     def close(self):
         self._lcd.close()
 
@@ -116,34 +126,41 @@ class LcdI2c:
 
     def write_string(self, text: str, clear=True):
         with self._write_lock:
-            lines = text.rstrip().split("\n")
-            lines = list(
-                chain.from_iterable(
-                    [
-                        self._text_wrapper.wrap(line) if line != "" else [""]
-                        for line in lines
-                    ]
-                )
-            )
-
-            if clear:
-                self.clear()
-
-            print(f"Sending text to LCD: {lines}")
-            print("-" * self.MAX_LINE_LENGTH)
-
-            for i, line in enumerate(lines):
-                print(line)
-
-                if i >= self.MAX_LINE_COUNT:
-                    raise ValueError(
-                        f"Number of lines is greater than {self.MAX_LINE_COUNT}: {lines}"
+            try:
+                lines = text.rstrip().split("\n")
+                lines = list(
+                    chain.from_iterable(
+                        [
+                            self._text_wrapper.wrap(line)
+                            if line != ""
+                            else [""]
+                            for line in lines
+                        ]
                     )
+                )
 
-                self._lcd.write_string(line)
-                self._lcd.crlf()
+                if clear:
+                    self.clear()
 
-            print("-" * self.MAX_LINE_LENGTH)
+                print(f"Sending text to LCD: {lines}")
+                print("-" * self.MAX_LINE_LENGTH)
+
+                for i, line in enumerate(lines):
+                    print(line)
+
+                    if i >= self.MAX_LINE_COUNT:
+                        raise ValueError(
+                            f"Number of lines is greater than {self.MAX_LINE_COUNT}: {lines}"
+                        )
+
+                    self._lcd.write_string(line)
+                    self._lcd.crlf()
+
+                print("-" * self.MAX_LINE_LENGTH)
+
+            except IOError:
+                self._reinit_lcd()
+                self.write_string(text, clear)
 
 
 def run_example():
