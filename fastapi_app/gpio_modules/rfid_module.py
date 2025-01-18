@@ -17,11 +17,6 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from buzzer import Buzzer, BuzzerPlayRequest
 from event_generator import SingleSourceEventGenerator
 
-PN532_RESTART_EXCEPTIONS = [
-    "Did not receive expected ACK from PN532!",
-    "Response frame preamble does not contain 0x00FF!",
-]
-
 
 class RfidModule:
     def __init__(self, buzzer: Buzzer | None = None):
@@ -37,8 +32,8 @@ class RfidModule:
         print("Found PN532 with firmware version: {0}.{1}".format(ver, rev))
 
     def _init_pn532(self) -> PN532_UART:
-        init_attempts = 10
-        for i in range(init_attempts):
+        attempts = 0
+        while True:
             try:
                 uart = serial.Serial(
                     "/dev/ttyAMA0", baudrate=115200, timeout=0.1
@@ -47,35 +42,25 @@ class RfidModule:
                 pn532.SAM_configuration()
                 break
             except RuntimeError as e:
-                if (
-                    str(e) not in PN532_RESTART_EXCEPTIONS
-                    or i == init_attempts - 1
-                ):
-                    raise
+                attempts += 1
 
-                print(
-                    f"Failed to init PN532, retrying... ({i + 1}/{init_attempts})"
-                )
+                print(e)
+                print(f"Failed to init PN532, retrying... ({attempts})")
                 time.sleep(1)
 
         return pn532
 
     def _read_uid(self) -> str | None:
-        read_attempts = 3
-        for i in range(read_attempts):
+        attempts = 0
+        while True:
             try:
                 uid = self._pn532.read_passive_target(timeout=0.5)
                 break
             except RuntimeError as e:
-                if (
-                    str(e) not in PN532_RESTART_EXCEPTIONS
-                    or i == read_attempts - 1
-                ):
-                    raise
+                attempts += 1
 
-                print(
-                    f"Failed to read PN532, reinit... ({i + 1}/{read_attempts})"
-                )
+                print(e)
+                print(f"Failed to read PN532, reinit... ({attempts})")
                 self._pn532 = self._init_pn532()
 
         if uid is None:
