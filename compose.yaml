@@ -20,6 +20,7 @@ services:
     devices:
       - "/dev/gpiomem:/dev/gpiomem"
       - "/dev/gpiochip0:/dev/gpiochip0"
+      - "/dev/ttyAMA0:/dev/ttyAMA0"
 
       - "/dev/i2c-8:/dev/i2c-8"
       - "/dev/i2c-7:/dev/i2c-7"
