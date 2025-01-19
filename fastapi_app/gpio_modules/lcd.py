@@ -125,8 +125,8 @@ class LcdI2c:
         self._lcd.clear()
 
     def write_string(self, text: str, clear=True):
-        with self._write_lock:
-            try:
+        try:
+            with self._write_lock:
                 lines = text.rstrip().split("\n")
                 lines = list(
                     chain.from_iterable(
@@ -158,9 +158,14 @@ class LcdI2c:
 
                 print("-" * self.MAX_LINE_LENGTH)
 
-            except IOError:
-                self._reinit_lcd()
-                self.write_string(text, clear)
+        except IOError as e:
+            print(f"Error: {e}")
+
+            print("Reinitializing LCD...")
+            self._reinit_lcd()
+
+            print("Retrying to write text to LCD again...")
+            self.write_string(text, clear)
 
 
 def run_example():
