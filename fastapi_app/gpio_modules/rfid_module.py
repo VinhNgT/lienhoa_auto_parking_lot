@@ -45,7 +45,7 @@ class RfidModule:
                 attempts += 1
 
                 print(e)
-                print(f"Failed to init PN532, retrying... ({attempts})")
+                print(f"Failed to init PN532, retrying... (attempt {attempts})")
                 time.sleep(1)
 
         return pn532
@@ -60,7 +60,7 @@ class RfidModule:
                 attempts += 1
 
                 print(e)
-                print(f"Failed to read PN532, reinit... ({attempts})")
+                print(f"Failed to read PN532, reinit... (attempt {attempts})")
                 self._pn532 = self._init_pn532()
 
         if uid is None:

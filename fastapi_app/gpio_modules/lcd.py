@@ -91,13 +91,9 @@ class LcdI2c:
     MAX_LINE_COUNT: Final = 4
 
     def __init__(self, i2c_bus, i2c_addr=0x27):
-        self._lcd = CharLCD(
-            i2c_expander="PCF8574",
-            address=i2c_addr,
-            port=i2c_bus,
-            cols=20,
-            rows=4,
-        )
+        self._i2c_bus = i2c_bus
+        self._i2c_addr = i2c_addr
+        self._lcd = self._init_lcd()
 
         self._text_wrapper = TextWrapper(self.MAX_LINE_LENGTH)
         self._write_lock = threading.Lock()
@@ -108,15 +104,26 @@ class LcdI2c:
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
-    def _reinit_lcd(self):
-        self._lcd.close(clear=True)
-        self._lcd = CharLCD(
-            i2c_expander="PCF8574",
-            address=self._lcd._address,
-            port=self._lcd._port,
-            cols=20,
-            rows=4,
-        )
+    def _init_lcd(self):
+        attempts = 0
+        while True:
+            try:
+                lcd = CharLCD(
+                    i2c_expander="PCF8574",
+                    address=self._i2c_addr,
+                    port=self._i2c_bus,
+                    cols=20,
+                    rows=4,
+                )
+                break
+            except IOError as e:
+                attempts += 1
+
+                print(e)
+                print(f"Failed to init LCD, retrying... (attempt {attempts})")
+                time.sleep(1)
+
+        return lcd
 
     def close(self):
         self._lcd.close()
@@ -125,47 +132,50 @@ class LcdI2c:
         self._lcd.clear()
 
     def write_string(self, text: str, clear=True):
-        try:
-            with self._write_lock:
-                lines = text.rstrip().split("\n")
-                lines = list(
-                    chain.from_iterable(
-                        [
-                            self._text_wrapper.wrap(line)
-                            if line != ""
-                            else [""]
-                            for line in lines
-                        ]
-                    )
-                )
-
-                if clear:
-                    self.clear()
-
-                print(f"Sending text to LCD: {lines}")
-                print("-" * self.MAX_LINE_LENGTH)
-
-                for i, line in enumerate(lines):
-                    print(line)
-
-                    if i >= self.MAX_LINE_COUNT:
-                        raise ValueError(
-                            f"Number of lines is greater than {self.MAX_LINE_COUNT}: {lines}"
+        attempts = 0
+        with self._write_lock:
+            while True:
+                try:
+                    lines = text.rstrip().split("\n")
+                    lines = list(
+                        chain.from_iterable(
+                            [
+                                self._text_wrapper.wrap(line)
+                                if line != ""
+                                else [""]
+                                for line in lines
+                            ]
                         )
+                    )
 
-                    self._lcd.write_string(line)
-                    self._lcd.crlf()
+                    if clear:
+                        self.clear()
 
-                print("-" * self.MAX_LINE_LENGTH)
+                    print(f"Sending text to LCD: {lines}")
+                    print("-" * self.MAX_LINE_LENGTH)
 
-        except IOError as e:
-            print(f"Error: {e}")
+                    for i, line in enumerate(lines):
+                        print(line)
 
-            print("Reinitializing LCD...")
-            self._reinit_lcd()
+                        if i >= self.MAX_LINE_COUNT:
+                            raise ValueError(
+                                f"Number of lines is greater than {self.MAX_LINE_COUNT}: {lines}"
+                            )
 
-            print("Retrying to write text to LCD again...")
-            self.write_string(text, clear)
+                        self._lcd.write_string(line)
+                        self._lcd.crlf()
+
+                    print("-" * self.MAX_LINE_LENGTH)
+                    break
+
+                except IOError as e:
+                    attempts += 1
+
+                    print(e)
+                    print(
+                        f"Failed to write text to LCD, reinit... (attempt {attempts})"
+                    )
+                    self._lcd = self._init_lcd()
 
 
 def run_example():
