@@ -88,7 +88,8 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 sudo su
-fastapi run app/main.py --port 80
+source .venv/bin/activate
+fastapi run fastapi_app/main.py --port 80
 ```
 
 Alternative non-root: https://www.geeksforgeeks.org/bind-port-number-less-1024-non-root-access/
