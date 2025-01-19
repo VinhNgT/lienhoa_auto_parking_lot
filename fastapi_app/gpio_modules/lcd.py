@@ -172,10 +172,14 @@ class LcdI2c:
                     attempts += 1
 
                     print(e)
+                    # print(
+                    #     f"Failed to write text to LCD, reinit... (attempt {attempts})"
+                    # )
+                    # self._lcd = self._init_lcd()
+
                     print(
-                        f"Failed to write text to LCD, reinit... (attempt {attempts})"
+                        f"Failed to write text to LCD, retry... (attempt {attempts})"
                     )
-                    self._lcd = self._init_lcd()
 
 
 def run_example():
