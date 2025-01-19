@@ -23,15 +23,11 @@ class LedsPcf8574:
         if led_count < 1 or led_count > 8:
             raise ValueError("led_count must be between 1 and 8")
 
-        self.pcf = PCF8574(i2c, address)
+        self._i2c = i2c
+        self._address = address
         self.led_count = led_count
         self.reverse_layout = reverse_layout
-
-        # Init pins turn off be default. LEDs are active low so we set the pins
-        # high.
-        # for i in range(8):
-        #     self.pcf.get_pin(i).switch_to_output(value=True)
-        self.pcf.write_gpio(0xFF)
+        self._pcf = self._init_leds()
 
     def __enter__(self):
         return self
@@ -39,9 +35,30 @@ class LedsPcf8574:
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
+    def _init_leds(self):
+        attempts = 0
+        while True:
+            try:
+                pcf = PCF8574(self._i2c, self._address)
+
+                # Init pins turn off be default. LEDs are active low so we set
+                # all of the pins high.
+                #
+                # for i in range(8):
+                #     self._pcf.get_pin(i).switch_to_output(value=True)
+                pcf.write_gpio(0xFF)
+                break
+            except IOError as e:
+                attempts += 1
+
+                print(e)
+                print(f"Failed to init LEDs, retrying... (attempt {attempts})")
+
+        return pcf
+
     def close(self):
         # Turn off all LEDs.
-        self.pcf.write_gpio(0xFF)
+        self._pcf.write_gpio(0xFF)
 
     def set_led(self, led_id: int, state: bool):
         if led_id < 0 or led_id > self.led_count - 1:
@@ -49,27 +66,39 @@ class LedsPcf8574:
                 f"led_id must be between 0 and {self.led_count - 1}"
             )
 
-        self.pcf.write_pin(
+        self._pcf.write_pin(
             led_id if not self.reverse_layout else 7 - led_id,
             not state,
         )
 
     def set_leds_byte(self, byte: int, reverse_byte=False):
-        if byte < 0 or byte > self.max_byte:
-            raise ValueError(
-                f"byte must be between 0x00 and {hex(self.max_byte)}"
-            )
+        attempts = 0
+        while True:
+            try:
+                if byte < 0 or byte > self.max_byte:
+                    raise ValueError(
+                        f"byte must be between 0x00 and {hex(self.max_byte)}"
+                    )
 
-        # Flip bits because LEDs are active low.
-        byte = ~byte & 0xFF
+                # Flip bits because LEDs are active low.
+                byte = ~byte & 0xFF
 
-        if reverse_byte:
-            byte = self._reverse_bits(byte, self.led_count)
+                if reverse_byte:
+                    byte = self._reverse_bits(byte, self.led_count)
 
-        if self.reverse_layout:
-            byte = self._reverse_bits(byte, 8)
+                if self.reverse_layout:
+                    byte = self._reverse_bits(byte, 8)
 
-        self.pcf.write_gpio(byte)
+                self._pcf.write_gpio(byte)
+                break
+            except IOError as e:
+                attempts += 1
+
+                print(e)
+                print(
+                    f"Failed to set LEDs byte, reinit... (attempt {attempts})"
+                )
+                self._pcf = self._init_leds()
 
     @property
     def max_byte(self):

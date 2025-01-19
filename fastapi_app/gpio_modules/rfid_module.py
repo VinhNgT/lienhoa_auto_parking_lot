@@ -46,7 +46,6 @@ class RfidModule:
 
                 print(e)
                 print(f"Failed to init PN532, retrying... (attempt {attempts})")
-                time.sleep(1)
 
         return pn532
 
